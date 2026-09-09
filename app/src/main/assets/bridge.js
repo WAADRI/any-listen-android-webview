@@ -101,13 +101,13 @@
     var native = window.anyListenNative;
     if (!a || !native) return;
     var now = Date.now();
-    if (!force && now - lastPushAt < THROTTLE_MS) return;
     var state = collectState(a);
-    var json = JSON.stringify(state);
-    if (!force && json === lastJson) return;
-    // 页面侧开始播放 → 更新冷却计时，拦截紧随其后的原生误暂停
+    // 始终跟踪 playing 状态变化（不受节流影响），确保冷却计时能捕捉到页面真正的起播
     if (state.playing && !wasPlaying) lastPlayTs = now;
     wasPlaying = state.playing;
+    if (!force && now - lastPushAt < THROTTLE_MS) return;
+    var json = JSON.stringify(state);
+    if (!force && json === lastJson) return;
     lastJson = json;
     lastPushAt = now;
     try {
