@@ -1,15 +1,56 @@
 /*
  * AnyListen Android 页面桥（注入到 WebView 主 world，document 加载早期执行）。
+ *
  * 设计依据：any-listen 播放器完全在页面内（new Audio()，不挂 DOM），
  *   并通过 navigator.mediaSession.setActionHandler 暴露控制入口。
  * - 上行：hook window.Audio 捕获实例 -> 事件推送状态给原生 anyListenNative.onMediaState
  * - 下行：hook mediaSession.setActionHandler 保存页面真实处理函数 ->
  *         window.__anylistenBridge.{play,pause,next,prev,seek,stop}
+ *
+ * WebView 兼容：Android 原生 WebView 不实现 navigator.mediaSession / window.MediaMetadata /
+ * HTMLAudioElement.setSinkId，这里为三者都提供垫片（shim），避免页面初始化崩溃。
  * 脚本幂等（window.__anylistenBridgeReady 守卫），可重复注入。
  */
 (function () {
   if (window.__anylistenBridgeReady) return;
   window.__anylistenBridgeReady = true;
+
+  /* ==================== WebView 兼容垫片 ==================== */
+
+  // 1. MediaMetadata（页面 modules/player/init/mediaSessionInfo.ts 依赖它）
+  if (typeof window.MediaMetadata === 'undefined') {
+    window.MediaMetadata = function (obj) {
+      this.title    = (obj && obj.title)    || '';
+      this.artist   = (obj && obj.artist)   || '';
+      this.album    = (obj && obj.album)    || '';
+      this.artwork  = (obj && obj.artwork)  || [];
+    };
+  }
+
+  // 2. navigator.mediaSession（Android WebView 不存在，页面初始化直接崩溃）
+  if (typeof navigator.mediaSession === 'undefined') {
+    var _msState = 'none';
+    var _msMeta = null;
+    var _msHandlers = {};
+    navigator.mediaSession = {
+      get playbackState() { return _msState; },
+      set playbackState(v) { _msState = v; },
+      get metadata() { return _msMeta; },
+      set metadata(v) { _msMeta = v; },
+      setActionHandler: function (type, fn) {
+        if (typeof fn === 'function') _msHandlers[type] = fn;
+        else delete _msHandlers[type];
+      },
+      setPositionState: function () { /* no-op in WebView */ }
+    };
+  }
+
+  // 3. setSinkId（WebView 未实现，页面 mediaDevice.ts 调用报错）
+  if (typeof HTMLAudioElement.prototype.setSinkId === 'undefined') {
+    HTMLAudioElement.prototype.setSinkId = function () { return Promise.resolve(); };
+  }
+
+  /* ======================================================== */
 
   var instances = [];
   var lastJson = '';
@@ -29,7 +70,7 @@
     return out;
   }
 
-  // 主播放器判定：优先“正在播放、非静音、有 src”，否则最近创建的非静音实例
+  // 主播放器判定：优先"正在播放、非静音、有 src"，否则最近创建的非静音实例
   function pickMain() {
     for (var i = instances.length - 1; i >= 0; i--) {
       var el = instances[i];
