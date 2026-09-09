@@ -78,6 +78,7 @@ class MediaService : Service() {
     private var wakelock: PowerManager.WakeLock? = null
 
     private var state = MediaState()
+    private var lastNotifyKey: String? = null
     private var sink: MediaCommandSink? = null
     private var hasAudioFocus = false
     private var pendingResumeAfterFocusLoss = false
@@ -195,12 +196,18 @@ class MediaService : Service() {
         }
 
         updatePlaybackState()
-        goForeground()
+        // 进度高频推送时只更新 MediaSession 状态，仅在标题/歌手/播放态变化时重建通知
+        val key = "${state.title}|${state.artist}|${state.playing}"
+        if (key != lastNotifyKey) {
+            lastNotifyKey = key
+            goForeground()
+        }
     }
 
     /** 播放完全停止 */
     fun stopPlayback() {
         pendingResumeAfterFocusLoss = false
+        lastNotifyKey = null
         state = state.copy(playing = false, positionMs = 0L, durationMs = 0L)
         mediaSession.isActive = false
         releaseWakeLock()
