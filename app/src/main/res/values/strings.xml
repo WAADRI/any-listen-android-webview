@@ -9,4 +9,11 @@
     <string name="setup_error_invalid">请输入合法的 http:// 或 https:// 地址</string>
 
     <string name="player_error_no_url">未配置服务器地址</string>
+
+    <string name="notification_channel_name">播放控制</string>
+    <string name="notification_subtitle">AnyListen</string>
+    <string name="notification_play">播放</string>
+    <string name="notification_pause">暂停</string>
+    <string name="notification_next">下一首</string>
+    <string name="notification_prev">上一首</string>
 </resources>
