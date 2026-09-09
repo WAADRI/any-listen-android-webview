@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">AnyListen</string>
+
+    <string name="setup_title">连接到你的 AnyListen 服务器</string>
+    <string name="setup_hint">https://your-server.example.com</string>
+    <string name="setup_tip">所有数据与功能都来自该服务器上的 any-listen 网页版，首次填写后可在应用内修改。</string>
+    <string name="setup_save">保存并进入</string>
+    <string name="setup_error_invalid">请输入合法的 http:// 或 https:// 地址</string>
+
+    <string name="player_error_no_url">未配置服务器地址</string>
+</resources>

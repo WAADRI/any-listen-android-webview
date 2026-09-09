@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 旧系统（API<26）用的简化图标：蓝色底 + 白色音符 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="48"
+    android:viewportHeight="48">
+    <path
+        android:fillColor="#1565C0"
+        android:pathData="M0,0h48v48h-48z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M23.5,28 L23.5,14 L26.5,14 L26.5,28 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M35,28 L35,16 L38,16 L38,28 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M23.5,28 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M35,28 m-5,0 a5,5 0 1,0 10,0 a5,5 0 1,0 -10,0" />
+</vector>
