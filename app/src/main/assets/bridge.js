@@ -56,6 +56,7 @@
   var lastJson = '';
   var lastPushAt = 0;
   var THROTTLE_MS = 500;
+  var wasPlaying = false;
 
   function mediaMeta() {
     var out = { title: '', artist: '', album: '' };
@@ -101,8 +102,12 @@
     if (!a || !native) return;
     var now = Date.now();
     if (!force && now - lastPushAt < THROTTLE_MS) return;
-    var json = JSON.stringify(collectState(a));
+    var state = collectState(a);
+    var json = JSON.stringify(state);
     if (!force && json === lastJson) return;
+    // 页面侧开始播放 → 更新冷却计时，拦截紧随其后的原生误暂停
+    if (state.playing && !wasPlaying) lastPlayTs = now;
+    wasPlaying = state.playing;
     lastJson = json;
     lastPushAt = now;
     try {
