@@ -130,19 +130,6 @@
   AnyListenAudio.prototype = RealAudio.prototype;
   window.Audio = AnyListenAudio;
 
-  // ---- 调试：劫持 Audio.pause() 记录谁调了暂停 ----
-  var origPauseMethod = HTMLAudioElement.prototype.pause;
-  HTMLAudioElement.prototype.pause = function () {
-    var main = pickMain();
-    if (this === main || (main === null && this.src && !this.paused)) {
-      try { throw new Error(); } catch (e) {
-        console.log('[bridge-pause-trace] audio.pause() called on main audio:');
-        console.log(e.stack);
-      }
-    }
-    return origPauseMethod.apply(this, arguments);
-  };
-
   // ---- hook mediaSession.setActionHandler，保存页面注册的真实处理函数 ----
   var handlers = {};
   try {
@@ -157,9 +144,23 @@
   } catch (e) {}
 
   // ---- 原生下行控制入口 ----
+  // play/pause 冷却保护：Android WebView 中服务启动/音频焦点变化可能
+  // 在 play 后马上触发一次误暂停，导致页面播放器进入 play-pause 死循环。
+  var lastPlayTs = 0;
+  var PAUSE_COOLDOWN_MS = 2500;
+
   window.__anylistenBridge = {
-    play: function () { if (handlers.play) handlers.play(); },
-    pause: function () { if (handlers.pause) handlers.pause(); },
+    play: function () {
+      lastPlayTs = Date.now();
+      if (handlers.play) handlers.play();
+    },
+    pause: function () {
+      if (Date.now() - lastPlayTs < PAUSE_COOLDOWN_MS) {
+        console.log('[bridge] pause suppressed (cooldown after play)');
+        return;
+      }
+      if (handlers.pause) handlers.pause();
+    },
     next: function () { if (handlers.nexttrack) handlers.nexttrack(); },
     prev: function () { if (handlers.previoustrack) handlers.previoustrack(); },
     seek: function (sec) { if (handlers.seekto) handlers.seekto({ seekTime: sec }); },
