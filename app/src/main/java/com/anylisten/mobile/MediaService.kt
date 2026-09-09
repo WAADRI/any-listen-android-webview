@@ -189,7 +189,8 @@ class MediaService : Service() {
         mediaSession.isActive = true
 
         if (state.playing) {
-            requestAudioFocus()
+            // 注意：不在此处调用 requestAudioFocus()，WebView 的 Chromium 音频管道已自行管理音频焦点，
+            // 额外的 requestAudioFocus 会与 WebView 冲突，导致系统暂停 WebView 音频（页面内 audio 触发 pause）。
             acquireWakeLock()
         } else {
             releaseWakeLock()
