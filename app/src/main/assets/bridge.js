@@ -141,20 +141,8 @@
     var origSet = navigator.mediaSession.setActionHandler;
     if (origSet) {
       navigator.mediaSession.setActionHandler = function (type, fn) {
-        if (typeof fn === 'function') {
-          // pause handler 包裹日志 + 调用栈，溯源谁在触发暂停
-          if (type === 'pause') {
-            handlers[type] = function () {
-              console.log('[bridge-who] pause handler CAUGHT');
-              try { throw new Error(); } catch (e) { console.log(e.stack); }
-              fn();
-            };
-          } else {
-            handlers[type] = fn;
-          }
-        } else {
-          delete handlers[type];
-        }
+        if (typeof fn === 'function') handlers[type] = fn;
+        else delete handlers[type];
         return origSet.call(navigator.mediaSession, type, fn);
       };
     }
