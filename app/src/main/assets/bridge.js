@@ -130,6 +130,19 @@
   AnyListenAudio.prototype = RealAudio.prototype;
   window.Audio = AnyListenAudio;
 
+  // ---- 调试：劫持 Audio.pause() 记录谁调了暂停 ----
+  var origPauseMethod = HTMLAudioElement.prototype.pause;
+  HTMLAudioElement.prototype.pause = function () {
+    var main = pickMain();
+    if (this === main || (main === null && this.src && !this.paused)) {
+      try { throw new Error(); } catch (e) {
+        console.log('[bridge-pause-trace] audio.pause() called on main audio:');
+        console.log(e.stack);
+      }
+    }
+    return origPauseMethod.apply(this, arguments);
+  };
+
   // ---- hook mediaSession.setActionHandler，保存页面注册的真实处理函数 ----
   var handlers = {};
   try {
