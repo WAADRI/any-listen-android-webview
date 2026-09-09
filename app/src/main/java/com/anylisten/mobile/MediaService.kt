@@ -195,7 +195,6 @@ class MediaService : Service() {
         }
 
         updatePlaybackState()
-        updateNotification()
         goForeground()
     }
 
