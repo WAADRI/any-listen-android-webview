@@ -205,10 +205,9 @@
   } catch (e) {}
 
   // ---- 原生下行控制入口 ----
-  // play/pause 冷却保护：Android WebView 中服务启动/音频焦点变化可能
-  // 在 play 后马上触发一次误暂停，导致页面播放器进入 play-pause 死循环。
+  // lastPlayTs 仅用于日志：pause 打印距离上次起播的时间差，
+  // 若出现用户未操作的 pause 且 dt 很小，说明是系统侧误暂停。
   var lastPlayTs = 0;
-  var PAUSE_COOLDOWN_MS = 2500;
 
   window.__anylistenBridge = {
     play: function () {
@@ -238,12 +237,10 @@
       }, 300);
     },
     pause: function () {
-      var dt = Date.now() - lastPlayTs;
-      if (dt < PAUSE_COOLDOWN_MS) {
-        console.log('[bridge] pause suppressed (cooldown, dt=' + dt + 'ms)');
-        return;
-      }
-      console.log('[bridge] native pause forwarded (dt=' + dt + 'ms)');
+      // 不做任何冷却拦截：用户暂停必须立即生效。
+      // （早期为防止音频焦点冲突引发的误暂停曾加过冷却，那种误暂停的根源
+      //  requestAudioFocus 冲突已在原生侧移除，冷却只会误伤"恢复后立刻暂停"的正常操作。）
+      console.log('[bridge] native pause (dt=' + (Date.now() - lastPlayTs) + 'ms)');
       if (handlers.pause) handlers.pause();
     },
     next: function () { if (handlers.nexttrack) handlers.nexttrack(); },
