@@ -50,6 +50,16 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
 
+      # 打印 release 包的签名证书，便于确认确实用了正式 keystore（而非退回 debug 签名）
+      - name: Verify release APK signature
+        run: |
+          APKSIGNER=$(ls "$ANDROID_SDK_ROOT"/build-tools/*/apksigner 2>/dev/null | sort -V | tail -1 || true)
+          if [ -z "$APKSIGNER" ]; then
+            echo "apksigner not found, skipping signature verification"
+          else
+            "$APKSIGNER" verify --print-certs app/build/outputs/apk/release/app-release.apk
+          fi
+
       - name: Upload APKs (artifact)
         uses: actions/upload-artifact@v4
         with:
