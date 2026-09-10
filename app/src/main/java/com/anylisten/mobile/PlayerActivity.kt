@@ -133,18 +133,11 @@ class PlayerActivity : AppCompatActivity(), MediaCommandSink {
         }
     }
 
-    override fun onResume() {
-        super.onResume()
-        webView.onResume()
-    }
-
-    override fun onPause() {
-        super.onPause()
-        // 播放中退后台：不暂停 WebView，保证音频/事件持续；仅在未播放时省电
-        if (pendingState?.playing != true) {
-            webView.onPause()
-        }
-    }
+    // 注意：绝不调用 webView.onPause()。
+    // WebView.onPause() 会挂起 WebView 的媒体管道（HTML5 音频输出被系统暂停），
+    // 而页面内 audio 元素的 paused 仍为 false，造成假性播放态：
+    // 通知栏/锁屏点"播放"后 JS 上报 playing=true（图标切回暂停图标）却完全无声。
+    // 音乐类应用必须让 WebView 常驻活跃，才能从后台/锁屏恢复播放。
 
     override fun onBackPressed() {
         if (webView.canGoBack()) {

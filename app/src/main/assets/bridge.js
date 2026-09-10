@@ -158,6 +158,28 @@
     play: function () {
       lastPlayTs = Date.now();
       if (handlers.play) handlers.play();
+      // 兜底：页面播放器可能只置了播放意图而未真正起播（isEmpty 重新拉流等），
+      // 300ms 后若主音频仍为暂停态就直接驱动音频元素，并打印失败原因便于排查。
+      setTimeout(function () {
+        var a = pickMain();
+        if (!a || !a.src) {
+          console.log('[bridge] play fallback: no main audio');
+          return;
+        }
+        if (!a.paused) {
+          console.log('[bridge] play ok, audio running');
+          return;
+        }
+        console.log('[bridge] play fallback: audio still paused, forcing play()');
+        try {
+          var p = a.play();
+          if (p && p.catch) {
+            p.catch(function (e) { console.log('[bridge] force play rejected: ' + e); });
+          }
+        } catch (e) {
+          console.log('[bridge] force play threw: ' + e);
+        }
+      }, 300);
     },
     pause: function () {
       if (Date.now() - lastPlayTs < PAUSE_COOLDOWN_MS) {
