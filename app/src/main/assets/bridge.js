@@ -71,15 +71,36 @@
     return out;
   }
 
-  // 主播放器判定：优先"正在播放、非静音、有 src"，否则最近创建的非静音实例
+  // 保活辅助音频判定：页面为维持 MediaSession 注册会创建一个 2 秒静音音频
+  // （assets/medias/Silence02s.mp3）。它短暂"播放中"时若被当成主播放器，
+  // 会上报虚假的 playing=true，导致通知栏图标乱跳。
+  function isHelperAudio(el) {
+    var s = (el && el.src) || '';
+    return /silence/i.test(s);
+  }
+
+  function durationOf(el) {
+    return (el && isFinite(el.duration) && el.duration > 0) ? el.duration : 0;
+  }
+
+  // 主播放器判定：优先"正在播放的真实曲目"，其次时长最长的真实曲目，最后兜底。
   function pickMain() {
-    for (var i = instances.length - 1; i >= 0; i--) {
-      var el = instances[i];
-      if (el && el.src && !el.paused && !el.muted && !el.ended) return el;
+    var i, el;
+    for (i = instances.length - 1; i >= 0; i--) {
+      el = instances[i];
+      if (el && el.src && !isHelperAudio(el) && !el.paused && !el.muted && !el.ended) return el;
     }
-    for (var j = instances.length - 1; j >= 0; j--) {
-      var e2 = instances[j];
-      if (e2 && e2.src && !e2.muted) return e2;
+    var best = null, bestDur = -1;
+    for (i = 0; i < instances.length; i++) {
+      el = instances[i];
+      if (!el || !el.src || isHelperAudio(el) || el.muted) continue;
+      var d = durationOf(el);
+      if (d > bestDur) { best = el; bestDur = d; }
+    }
+    if (best) return best;
+    for (i = instances.length - 1; i >= 0; i--) {
+      el = instances[i];
+      if (el && el.src && !isHelperAudio(el) && !el.muted) return el;
     }
     return null;
   }

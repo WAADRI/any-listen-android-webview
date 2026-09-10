@@ -38,6 +38,8 @@ interface MediaCommandSink {
     fun onNextCommand()
     fun onPrevCommand()
     fun onSeekCommand(positionMs: Long)
+    /** 原生侧事件回传到页面控制台，便于真机联调（chrome://inspect） */
+    fun onNativeLog(message: String)
 }
 
 /**
@@ -89,18 +91,22 @@ class MediaService : Service() {
 
     private val sessionCallback = object : MediaSessionCompat.Callback() {
         override fun onPlay() {
+            log("session onPlay")
             sink?.onPlayCommand()
         }
 
         override fun onPause() {
+            log("session onPause")
             sink?.onPauseCommand()
         }
 
         override fun onSkipToNext() {
+            log("session onSkipToNext")
             sink?.onNextCommand()
         }
 
         override fun onSkipToPrevious() {
+            log("session onSkipToPrevious")
             sink?.onPrevCommand()
         }
 
@@ -152,7 +158,9 @@ class MediaService : Service() {
     override fun onBind(intent: Intent?): IBinder = binder
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        when (intent?.action) {
+        val action = intent?.action
+        log("service onStartCommand action=$action playing=${state.playing} sinkAttached=${sink != null}")
+        when (action) {
             ACTION_PLAY -> sink?.onPlayCommand()
             ACTION_PAUSE -> sink?.onPauseCommand()
             ACTION_TOGGLE -> {
@@ -218,6 +226,11 @@ class MediaService : Service() {
 
     // ---------- 内部 ----------
 
+    /** 把原生侧事件打到页面控制台（真机联调时用 chrome://inspect 观察） */
+    private fun log(message: String) {
+        sink?.onNativeLog(message)
+    }
+
     private fun createChannel() {
         val channel = NotificationChannel(
             CHANNEL_ID,
@@ -250,6 +263,7 @@ class MediaService : Service() {
 
     private fun updatePlaybackState() {
         val actions = PlaybackStateCompat.ACTION_PLAY or PlaybackStateCompat.ACTION_PAUSE or
+            PlaybackStateCompat.ACTION_PLAY_PAUSE or
             PlaybackStateCompat.ACTION_SKIP_TO_NEXT or PlaybackStateCompat.ACTION_SKIP_TO_PREVIOUS or
             PlaybackStateCompat.ACTION_SEEK_TO or PlaybackStateCompat.ACTION_STOP
         val playState = if (state.playing) {
@@ -257,9 +271,11 @@ class MediaService : Service() {
         } else {
             PlaybackStateCompat.STATE_PAUSED
         }
+        // 关键：暂停态 speed 必须为 0。传 1f 会让系统媒体控制把会话误判成"正在播放"，
+        // 于是暂停时仍显示暂停图标，并把点击派发成 onPause（表现为点播放完全无反应）。
         val ps = PlaybackStateCompat.Builder()
             .setActions(actions)
-            .setState(playState, state.positionMs, 1f)
+            .setState(playState, state.positionMs, if (state.playing) 1f else 0f)
             .build()
         mediaSession.setPlaybackState(ps)
     }
@@ -298,23 +314,15 @@ class MediaService : Service() {
                 commandPendingIntent(ACTION_PREV)
             )
         )
-        if (state.playing) {
-            builder.addAction(
-                NotificationCompat.Action(
-                    android.R.drawable.ic_media_pause,
-                    getString(R.string.notification_pause),
-                    commandPendingIntent(ACTION_PAUSE)
-                )
+        // 中间按钮固定用 TOGGLE：由服务按自身 state 决定播放/暂停。
+        // 避免系统/OEM 通知栏缓存旧动作，导致"暂停后再点播放仍派发暂停指令"而毫无反应。
+        builder.addAction(
+            NotificationCompat.Action(
+                if (state.playing) android.R.drawable.ic_media_pause else android.R.drawable.ic_media_play,
+                getString(if (state.playing) R.string.notification_pause else R.string.notification_play),
+                commandPendingIntent(ACTION_TOGGLE)
             )
-        } else {
-            builder.addAction(
-                NotificationCompat.Action(
-                    android.R.drawable.ic_media_play,
-                    getString(R.string.notification_play),
-                    commandPendingIntent(ACTION_PLAY)
-                )
-            )
-        }
+        )
         builder.addAction(
             NotificationCompat.Action(
                 android.R.drawable.ic_media_next,

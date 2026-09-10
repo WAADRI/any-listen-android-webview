@@ -118,6 +118,7 @@ class PlayerActivity : AppCompatActivity(), MediaCommandSink {
                 super.onPageFinished(view, url)
                 // 兜底重注（脚本幂等）
                 injectBridge()
+                logAppVersion()
             }
         }
         webView.webChromeClient = WebChromeClient()
@@ -213,8 +214,38 @@ class PlayerActivity : AppCompatActivity(), MediaCommandSink {
         runBridge("seek", (positionMs / 1000.0).toString())
     }
 
+    override fun onNativeLog(message: String) = logToPage(message)
+
+    /** 页面加载后打印 APK 版本，便于确认真机装的是哪一版构建 */
+    private fun logAppVersion() {
+        try {
+            val info = packageManager.getPackageInfo(packageName, 0)
+            val code = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                info.longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                info.versionCode.toLong()
+            }
+            logToPage("any-listen-android v${info.versionName} ($code) ready")
+        } catch (_: Exception) {
+        }
+    }
+
+    /** 把原生侧事件写入页面控制台，便于与页面日志逐条对照（chrome://inspect） */
+    private fun logToPage(message: String) {
+        if (!::webView.isInitialized || isDestroyed || isFinishing) return
+        val escaped = message.replace("\\", "\\\\").replace("'", "\\'").replace("\n", " ")
+        webView.post {
+            try {
+                webView.evaluateJavascript("console.log('[native] $escaped')", null)
+            } catch (_: Exception) {
+            }
+        }
+    }
+
     private fun runBridge(method: String, argText: String? = null) {
         if (!::webView.isInitialized || isDestroyed || isFinishing) return
+        logToPage("runBridge -> $method")
         webView.post {
             try {
                 val expr = buildString {
