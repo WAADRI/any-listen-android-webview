@@ -117,23 +117,58 @@
     };
   }
 
-  function push(force) {
-    var a = pickMain();
-    var native = window.anyListenNative;
-    if (!a || !native) return;
-    var now = Date.now();
-    var state = collectState(a);
-    // 始终跟踪 playing 状态变化（不受节流影响），确保冷却计时能捕捉到页面真正的起播
-    if (state.playing && !wasPlaying) lastPlayTs = now;
-    wasPlaying = state.playing;
-    if (!force && now - lastPushAt < THROTTLE_MS) return;
-    var json = JSON.stringify(state);
-    if (!force && json === lastJson) return;
-    lastJson = json;
-    lastPushAt = now;
+  function sendState(native, json) {
     try {
       native.onMediaState(json);
     } catch (e) {}
+  }
+
+  function push(force) {
+    var a = pickMain();
+    var native = window.anyListenNative;
+    if (!native) return;
+    var now = Date.now();
+
+    // 没有可识别的真实播放器（换曲清空、src 被移除等）：按"未播放"上报，
+    // 保留上一次的标题，避免原生侧状态永久卡在 playing=true。
+    if (!a) {
+      if (!wasPlaying) return;
+      wasPlaying = false;
+      var prev = {};
+      try { prev = JSON.parse(lastJson || '{}'); } catch (e) {}
+      var idle = JSON.stringify({
+        playing: false, currentTime: 0, duration: 0,
+        title: prev.title || '', artist: prev.artist || ''
+      });
+      lastJson = idle;
+      lastPushAt = now;
+      sendState(native, idle);
+      return;
+    }
+
+    var state = collectState(a);
+    var playingChanged = state.playing !== wasPlaying;
+    if (playingChanged && state.playing) lastPlayTs = now;
+    wasPlaying = state.playing;
+
+    // 关键：播放/暂停态变化必须立即上报，绝不能被节流丢弃。
+    // 音频一旦暂停就不再产生 timeupdate/playing 等事件；若这次上报被节流丢掉，
+    // 原生侧会永远停留在 playing=true —— 通知栏/锁屏一直是"暂停"图标，
+    // 点击只能派发 onPause（页面守卫直接 return），表现为点播放完全无反应。
+    if (playingChanged || force) {
+      var jsonChanged = JSON.stringify(state);
+      lastJson = jsonChanged;
+      lastPushAt = now;
+      sendState(native, jsonChanged);
+      return;
+    }
+
+    if (now - lastPushAt < THROTTLE_MS) return;
+    var json = JSON.stringify(state);
+    if (json === lastJson) return;
+    lastJson = json;
+    lastPushAt = now;
+    sendState(native, json);
   }
 
   function hook(el) {
@@ -203,10 +238,12 @@
       }, 300);
     },
     pause: function () {
-      if (Date.now() - lastPlayTs < PAUSE_COOLDOWN_MS) {
-        console.log('[bridge] pause suppressed (cooldown after play)');
+      var dt = Date.now() - lastPlayTs;
+      if (dt < PAUSE_COOLDOWN_MS) {
+        console.log('[bridge] pause suppressed (cooldown, dt=' + dt + 'ms)');
         return;
       }
+      console.log('[bridge] native pause forwarded (dt=' + dt + 'ms)');
       if (handlers.pause) handlers.pause();
     },
     next: function () { if (handlers.nexttrack) handlers.nexttrack(); },

@@ -96,7 +96,7 @@ class MediaService : Service() {
         }
 
         override fun onPause() {
-            log("session onPause")
+            log("session onPause musicActive=${audioManager.isMusicActive} pagePlaying=${state.playing}")
             sink?.onPauseCommand()
         }
 
@@ -115,11 +115,13 @@ class MediaService : Service() {
         }
 
         override fun onStop() {
+            log("session onStop")
             sink?.onPauseCommand()
         }
     }
 
     private val audioFocusListener = AudioManager.OnAudioFocusChangeListener { change ->
+        log("audioFocus change=$change")
         when (change) {
             AudioManager.AUDIOFOCUS_LOSS -> {
                 hasAudioFocus = false
@@ -209,6 +211,7 @@ class MediaService : Service() {
         val key = "${state.title}|${state.artist}|${state.playing}"
         if (key != lastNotifyKey) {
             lastNotifyKey = key
+            log("publish playing=${state.playing} pos=${state.positionMs} dur=${state.durationMs}")
             goForeground()
         }
     }
