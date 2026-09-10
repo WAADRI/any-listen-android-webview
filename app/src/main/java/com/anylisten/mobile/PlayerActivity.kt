@@ -226,7 +226,7 @@ class PlayerActivity : AppCompatActivity(), MediaCommandSink {
                 @Suppress("DEPRECATION")
                 info.versionCode.toLong()
             }
-            logToPage("any-listen-android v${info.versionName} ($code) ready")
+            logToPage("any-listen-android-webview v${info.versionName} ($code) ready")
         } catch (_: Exception) {
         }
     }

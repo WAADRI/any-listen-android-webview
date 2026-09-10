@@ -14,5 +14,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "any-listen-android"
+rootProject.name = "any-listen-android-webview"
 include(":app")

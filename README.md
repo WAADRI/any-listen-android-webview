@@ -1,11 +1,14 @@
-# AnyListen Android
+# AnyListen Android WebView
 
 any-listen 网页版的 Android 壳应用：一个可配置服务器地址的 WebView App。
 所有功能（播放、列表、歌词、扩展等）都来自你部署的 any-listen 网页版服务，本应用负责提供原生体验：后台播放、锁屏/通知栏媒体控制、自动切歌保活。
 
+> **非官方项目**：本项目是社区第三方客户端，与 [any-listen](https://github.com/any-listen/any-listen) 官方无关联。
+> 应用本身不包含 any-listen 的任何源码，也不内置任何服务器地址 —— 全部功能由你自行部署的服务器提供。
+
 ## 使用
 
-1. 安装 [Releases](https://github.com/WAADRI/any-listen-android/releases) 页面的 `app-release.apk`。
+1. 安装 [Releases](https://github.com/WAADRI/any-listen-android-webview/releases) 页面的 `app-release.apk`。
 2. 首次启动填写你的服务器地址，例如 `https://music.example.com`。
 3. 进入播放界面，行为与手机 Chrome 打开该站点一致（已验证 Chrome 内核下功能完整）。
 
@@ -83,3 +86,10 @@ gradle assembleDebug   # 需本机安装 Gradle 8.4 + JDK 17，SDK 组件由 AGP
 - **不要额外 `requestAudioFocus()`**：WebView 的 Chromium 音频管道自行管理音频焦点，额外请求会抢焦点并让 Chromium 暂停播放，形成 play/pause 死循环。
 - **播放态变化不能被节流丢弃**：音频暂停后不再产生任何事件，若这次上报被节流丢掉，原生侧状态会永久卡在 `playing=true`，表现为"点播放毫无反应且无日志"。
 - **暂停态 `PlaybackStateCompat` 的 speed 必须为 0**：传 `1f` 会让系统把会话误判为"正在播放"，从而派发 `onPause`。
+
+## 许可证
+
+本项目以 [GNU AGPL-3.0](LICENSE) 授权。
+
+上游 [any-listen](https://github.com/any-listen/any-listen) 采用基于 AGPL v3.0 的自定义许可证（附加禁止商业使用条款）。
+本项目不包含其任何源码，属独立作品；若你同时分发 any-listen 本体，请另行遵守其自身许可条款。
